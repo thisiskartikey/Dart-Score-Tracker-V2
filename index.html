@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#121212">
+    <title>Dart Score Tracker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Toast Container -->
+    <div id="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+    <!-- Main App Container -->
+    <div class="app-container">
+        <!-- Setup Screen -->
+        <div id="setup-screen" class="screen active">
+            <div class="setup-content">
+                <h1 class="app-title">🎯 Dart Tracker</h1>
+
+                <div class="setup-section">
+                    <label class="setup-label">Game Type</label>
+                    <div class="game-type-selector">
+                        <button class="game-type-btn active" data-type="301">301</button>
+                        <button class="game-type-btn" data-type="501">501</button>
+                    </div>
+                </div>
+
+                <div class="setup-section">
+                    <label class="setup-label" for="num-players">Number of Players</label>
+                    <select id="num-players" class="player-select">
+                        <option value="2">2 Players</option>
+                        <option value="3">3 Players</option>
+                        <option value="4">4 Players</option>
+                        <option value="5">5 Players</option>
+                    </select>
+                </div>
+
+                <div id="player-inputs" class="player-inputs">
+                    <!-- Player inputs will be dynamically generated -->
+                </div>
+
+                <button id="start-game-btn" class="btn btn-primary btn-large">Start Game</button>
+                <button id="view-history-btn" class="btn btn-secondary btn-large">View History</button>
+            </div>
+        </div>
+
+        <!-- Game Screen -->
+        <div id="game-screen" class="screen">
+            <div class="game-header">
+                <h2 id="game-type-display">301</h2>
+                <button id="end-game-btn" class="btn btn-small btn-danger">End Game</button>
+            </div>
+
+            <!-- Player Cards -->
+            <div id="player-cards" class="player-cards">
+                <!-- Player cards will be dynamically generated -->
+            </div>
+
+            <!-- Input Area -->
+            <div class="input-area">
+                <!-- Turn History -->
+                <div id="turn-history" class="turn-history">
+                    <div class="turn-history-label">Current Turn:</div>
+                    <div id="turn-darts" class="turn-darts">
+                        <!-- Dart entries will be shown here -->
+                    </div>
+                    <div id="turn-total" class="turn-total">Total: 0</div>
+                </div>
+
+                <!-- Darts Remaining -->
+                <div class="darts-remaining">
+                    <span id="darts-count">3</span> darts remaining
+                </div>
+
+                <!-- Mode Selector -->
+                <div class="mode-selector">
+                    <button class="mode-btn active" data-mode="single">Single</button>
+                    <button class="mode-btn" data-mode="double">Double</button>
+                    <button class="mode-btn" data-mode="triple">Triple</button>
+                </div>
+
+                <!-- Number Grid -->
+                <div class="number-grid">
+                    <button class="number-btn" data-value="1">1</button>
+                    <button class="number-btn" data-value="2">2</button>
+                    <button class="number-btn" data-value="3">3</button>
+                    <button class="number-btn" data-value="4">4</button>
+                    <button class="number-btn" data-value="5">5</button>
+                    <button class="number-btn" data-value="6">6</button>
+                    <button class="number-btn" data-value="7">7</button>
+                    <button class="number-btn" data-value="8">8</button>
+                    <button class="number-btn" data-value="9">9</button>
+                    <button class="number-btn" data-value="10">10</button>
+                    <button class="number-btn" data-value="11">11</button>
+                    <button class="number-btn" data-value="12">12</button>
+                    <button class="number-btn" data-value="13">13</button>
+                    <button class="number-btn" data-value="14">14</button>
+                    <button class="number-btn" data-value="15">15</button>
+                    <button class="number-btn" data-value="16">16</button>
+                    <button class="number-btn" data-value="17">17</button>
+                    <button class="number-btn" data-value="18">18</button>
+                    <button class="number-btn" data-value="19">19</button>
+                    <button class="number-btn" data-value="20">20</button>
+                </div>
+
+                <!-- Special Buttons -->
+                <div class="special-buttons">
+                    <button class="special-btn bull-single" data-value="25">Single Bull (25)</button>
+                    <button class="special-btn bull-double" data-value="50">Double Bull (50)</button>
+                    <button class="special-btn miss-btn" data-value="0">Miss</button>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="action-buttons">
+                    <button id="undo-btn" class="btn btn-secondary">Undo</button>
+                    <button id="end-turn-btn" class="btn btn-primary">End Turn</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- History Screen -->
+        <div id="history-screen" class="screen">
+            <div class="history-header">
+                <h2>Game History</h2>
+                <button id="back-to-setup-btn" class="btn btn-secondary btn-small">Back</button>
+            </div>
+
+            <!-- Player Stats -->
+            <div class="stats-section">
+                <h3>Player Statistics</h3>
+                <div id="player-stats" class="player-stats">
+                    <!-- Player stats will be dynamically generated -->
+                </div>
+            </div>
+
+            <!-- Game History -->
+            <div class="history-section">
+                <h3>Past Games</h3>
+                <div id="game-history" class="game-history">
+                    <!-- Game history will be dynamically generated -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Win Modal -->
+        <div id="win-modal" class="modal">
+            <div class="modal-content">
+                <h2>🎉 Game Over!</h2>
+                <div id="win-details">
+                    <!-- Win details will be dynamically generated -->
+                </div>
+                <div class="modal-actions">
+                    <button id="new-game-btn" class="btn btn-primary">New Game</button>
+                    <button id="view-stats-btn" class="btn btn-secondary">View History</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
