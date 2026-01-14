@@ -11,6 +11,7 @@ class DartGame {
         this.gameActive = false;
         this.gameHistory = this.loadGameHistory();
         this.playerList = this.loadPlayerList();
+        this.availablePersonas = this.getAvailablePersonas();
 
         this.initEventListeners();
         this.updatePlayerInputs();
@@ -441,137 +442,247 @@ class DartGame {
         // Factor 2: Current position among players (30% weight)
         const scores = this.players.map(p => p.score);
         const minScore = Math.min(...scores);
-        const positionScore = (1 - ((player.score - minScore) / this.gameType)) * 100;
+        const scoreDiff = player.score - minScore;
+        const positionScore = scoreDiff > 0 ? (1 - (scoreDiff / this.gameType)) * 100 : 100;
         const positionWeight = positionScore * 0.3;
 
         // Factor 3: Current performance vs. historical average (30% weight)
-        const avgDartsPerPoint = player.dartsThrown / (this.gameType - player.score);
-        const performanceScore = Math.max(0, Math.min(100, 100 - (avgDartsPerPoint * 20)));
-        const performanceWeight = performanceScore * 0.3;
+        const pointsScored = this.gameType - player.score;
+        let performanceWeight = 50 * 0.3; // Default 50% performance score if no darts thrown
+        
+        if (pointsScored > 0 && player.dartsThrown > 0) {
+            const avgDartsPerPoint = player.dartsThrown / pointsScored;
+            const performanceScore = Math.max(0, Math.min(100, 100 - (avgDartsPerPoint * 20)));
+            performanceWeight = performanceScore * 0.3;
+        }
 
         const totalProbability = historicalWeight + positionWeight + performanceWeight;
         return Math.round(Math.max(1, Math.min(99, totalProbability)));
     }
 
-    // Finishing Options
+    // Finishing Options - Calculate ALL valid finishing combinations
     getFinishingOptions(score) {
-        const finishes = {
-            170: ['T20', 'T20', 'Bull'],
-            167: ['T20', 'T19', 'Bull'],
-            164: ['T20', 'T18', 'Bull'],
-            161: ['T20', 'T17', 'Bull'],
-            160: ['T20', 'T20', 'D20'],
-            157: ['T20', 'T19', 'D20'],
-            156: ['T20', 'T20', 'D18'],
-            154: ['T20', 'T18', 'D20'],
-            153: ['T20', 'T19', 'D18'],
-            152: ['T20', 'T20', 'D16'],
-            151: ['T20', 'T17', 'D20'],
-            150: ['T20', 'T18', 'D18'],
-            149: ['T20', 'T19', 'D16'],
-            148: ['T20', 'T16', 'D20'],
-            147: ['T20', 'T17', 'D18'],
-            146: ['T20', 'T18', 'D16'],
-            145: ['T20', 'T15', 'D20'],
-            144: ['T20', 'T20', 'D12'],
-            143: ['T20', 'T17', 'D16'],
-            142: ['T20', 'T14', 'D20'],
-            141: ['T20', 'T19', 'D12'],
-            140: ['T20', 'T20', 'D10'],
-            139: ['T20', 'T13', 'D20'],
-            138: ['T20', 'T18', 'D12'],
-            137: ['T20', 'T19', 'D10'],
-            136: ['T20', 'T20', 'D8'],
-            135: ['T20', 'T17', 'D12'],
-            134: ['T20', 'T14', 'D16'],
-            133: ['T20', 'T19', 'D8'],
-            132: ['T20', 'T16', 'D12'],
-            131: ['T20', 'T13', 'D16'],
-            130: ['T20', 'T20', 'D5'],
-            129: ['T19', 'T16', 'D12'],
-            128: ['T18', 'T14', 'D16'],
-            127: ['T20', 'T17', 'D8'],
-            126: ['T19', 'T19', 'D6'],
-            125: ['T18', 'T13', 'D16'],
-            124: ['T20', 'T14', 'D11'],
-            123: ['T19', 'T16', 'D9'],
-            122: ['T18', 'T20', 'D7'],
-            121: ['T20', 'T11', 'D14'],
-            120: ['T20', 'S20', 'D20'],
-            110: ['T20', 'S18', 'D16'],
-            100: ['T20', 'D20'],
-            90: ['T18', 'D18'],
-            80: ['T20', 'D10'],
-            70: ['T10', 'D20'],
-            60: ['S20', 'D20'],
-            50: ['S10', 'D20'],
-            40: ['D20'],
-            32: ['D16']
-        };
+        if (score <= 1) {
+            return `<div class="finishing-options">Invalid score - cannot finish</div>`;
+        }
 
-        // Find the best finish option
-        let bestFinish = null;
-        for (let targetScore = score; targetScore >= 2; targetScore--) {
-            if (finishes[targetScore]) {
-                bestFinish = finishes[targetScore];
-                break;
+        const combinations = this.calculateAllFinishes(score);
+        
+        if (combinations.length === 0) {
+            if (score % 2 === 1) {
+                // Odd score - need to make it even first
+                return `<div class="finishing-options">Score is odd - need to reduce by 1 first, then finish on D${Math.floor((score - 1) / 2)}</div>`;
+            }
+            return `<div class="finishing-options">No valid finishes available - need to reduce score first</div>`;
+        }
+
+        // Format and display all combinations (show up to 6 options)
+        const displayCombos = combinations.slice(0, 6);
+        const optionsHtml = displayCombos.map(combo => {
+            const darts = combo.darts.join(' → ');
+            return darts;
+        }).join(' | ');
+
+        const moreText = combinations.length > 6 ? ` (+${combinations.length - 6} more)` : '';
+        
+        return `<div class="finishing-options">Finish: ${optionsHtml}${moreText}</div>`;
+    }
+
+    // Calculate all valid finishing combinations
+    calculateAllFinishes(score) {
+        const combinations = [];
+        
+        // Available dart values: singles (1-20), doubles (2-40), triples (3-60), bulls (25, 50)
+        const dartValues = [];
+        
+        // Singles 1-20
+        for (let i = 1; i <= 20; i++) {
+            dartValues.push({ type: 'S', value: i, score: i, display: `S${i}` });
+        }
+        
+        // Doubles 1-20
+        for (let i = 1; i <= 20; i++) {
+            dartValues.push({ type: 'D', value: i, score: i * 2, display: `D${i}` });
+        }
+        
+        // Triples 1-20
+        for (let i = 1; i <= 20; i++) {
+            dartValues.push({ type: 'T', value: i, score: i * 3, display: `T${i}` });
+        }
+        
+        // Bulls
+        dartValues.push({ type: 'B', value: 25, score: 25, display: 'Bull' });
+        dartValues.push({ type: 'DB', value: 50, score: 50, display: 'Double Bull' });
+
+        // Try 1-dart finishes (must be a double that equals the score)
+        for (const dart of dartValues) {
+            if (dart.score === score && (dart.type === 'D' || dart.type === 'DB')) {
+                combinations.push({
+                    darts: [dart.display],
+                    dartCount: 1
+                });
             }
         }
 
-        if (bestFinish) {
-            return `<div class="finishing-options">Finish: ${bestFinish.join(' → ')}</div>`;
+        // Try 2-dart finishes (first dart can be anything, second must be double that finishes)
+        for (const dart1 of dartValues) {
+            const remaining = score - dart1.score;
+            if (remaining === 50) {
+                // Can finish with Double Bull
+                combinations.push({
+                    darts: [dart1.display, 'Double Bull'],
+                    dartCount: 2
+                });
+            } else if (remaining > 0 && remaining <= 40 && remaining % 2 === 0) {
+                // Remaining is a valid double (2-40)
+                const doubleValue = remaining / 2;
+                if (doubleValue >= 1 && doubleValue <= 20) {
+                    combinations.push({
+                        darts: [dart1.display, `D${doubleValue}`],
+                        dartCount: 2
+                    });
+                }
+            }
         }
 
-        return '';
+        // Try 3-dart finishes
+        for (const dart1 of dartValues) {
+            for (const dart2 of dartValues) {
+                const remaining = score - dart1.score - dart2.score;
+                if (remaining === 50) {
+                    // Can finish with Double Bull
+                    combinations.push({
+                        darts: [dart1.display, dart2.display, 'Double Bull'],
+                        dartCount: 3
+                    });
+                } else if (remaining > 0 && remaining <= 40 && remaining % 2 === 0) {
+                    // Last dart must be a double that equals remaining
+                    const doubleValue = remaining / 2;
+                    if (doubleValue >= 1 && doubleValue <= 20) {
+                        combinations.push({
+                            darts: [dart1.display, dart2.display, `D${doubleValue}`],
+                            dartCount: 3
+                        });
+                    }
+                }
+            }
+        }
+
+        // Remove duplicates (preserve order - dart order matters!)
+        const uniqueCombos = [];
+        const seen = new Set();
+        
+        for (const combo of combinations) {
+            // Use the exact order of darts as key (order matters - must finish on double)
+            const key = combo.darts.join('|');
+            if (!seen.has(key)) {
+                seen.add(key);
+                uniqueCombos.push(combo);
+            }
+        }
+
+        // Sort by dart count, then by preference (triples first, then doubles, then singles)
+        uniqueCombos.sort((a, b) => {
+            if (a.dartCount !== b.dartCount) {
+                return a.dartCount - b.dartCount;
+            }
+            // Prefer combinations with triples/higher scores
+            const aScore = a.darts.reduce((sum, d) => {
+                if (d.startsWith('T')) return sum + 60;
+                if (d.startsWith('D')) return sum + 40;
+                return sum + 20;
+            }, 0);
+            const bScore = b.darts.reduce((sum, d) => {
+                if (d.startsWith('T')) return sum + 60;
+                if (d.startsWith('D')) return sum + 40;
+                return sum + 20;
+            }, 0);
+            return bScore - aScore;
+        });
+
+        return uniqueCombos;
     }
 
-    // Witty Comments
-    showWittyComment(score, remainingScore) {
-        const comments = {
-            high: [
-                '🎯 Bullseye! That\'s how you do it!',
-                '🎯 On fire! Keep it going!',
-                '🎯 Outstanding throw!',
-                '🎯 Now that\'s precision!',
-                '🎯 Crushing it!'
-            ],
-            triple: [
-                '🎯 Nice triple! Getting closer!',
-                '🎯 Triple trouble for the opponents!',
-                '🎯 That\'s what we\'re talking about!',
-                '🎯 Smooth sailing!',
-                '🎯 You\'re in the zone!'
-            ],
-            closeToWin: [
-                '🎯 Almost there! Finish strong!',
-                '🎯 Victory is within reach!',
-                '🎯 One good throw away!',
-                '🎯 Can you taste the victory?',
-                '🎯 Time to close this out!'
-            ],
-            gettingClose: [
-                '🎯 Getting into finishing range!',
-                '🎯 Setting up for the win!',
-                '🎯 Position yourself for victory!',
-                '🎯 Looking good!',
-                '🎯 Steady progress!'
-            ],
-            low: [
-                '🎯 Every point counts!',
-                '🎯 Keep chipping away!',
-                '🎯 One dart at a time!',
-                '🎯 Steady as she goes!',
-                '🎯 Building momentum!'
-            ],
-            miss: [
-                '🎯 Shake it off! Next one!',
-                '🎯 Nobody\'s perfect!',
-                '🎯 Refocus and fire!',
-                '🎯 Miss happens to the best!',
-                '🎯 Reset and reload!'
-            ]
+    // Persona Management - Get available personas for shuffling
+    getAvailablePersonas() {
+        if (typeof PERSONAS === 'undefined') {
+            return ['default'];
+        }
+        
+        // Exclude trashTalker (it's opponent-aware and not suitable for general use)
+        const personas = Object.keys(PERSONAS);
+        return personas.filter(key => key !== 'trashTalker');
+    }
+
+    // Get random persona
+    getRandomPersona() {
+        const available = this.availablePersonas;
+        if (available.length === 0) return 'default';
+        return available[Math.floor(Math.random() * available.length)];
+    }
+
+    // Get persona image URL
+    getPersonaImage(personaKey) {
+        const avatars = {
+            // Character-specific personas
+            jesse: { bg: '#1e293b', fg: '#f8fafc', label: 'JESSE', sub: 'HYPE' },
+            sheldon: { bg: '#0f766e', fg: '#ecfeff', label: 'SHELDON', sub: 'SCI' },
+            pirate: { bg: '#7c2d12', fg: '#fff7ed', label: 'PIRATE', sub: 'CREW' },
+            shakespeare: { bg: '#4c1d95', fg: '#f5f3ff', label: 'BARD', sub: 'VERSE' },
+            // Style / role avatars
+            coach: { bg: '#14532d', fg: '#f0fdf4', label: 'COACH', sub: 'DRIVE' },
+            stoic: { bg: '#111827', fg: '#f9fafb', label: 'STOIC', sub: 'CALM' },
+            announcer: { bg: '#9a3412', fg: '#fff7ed', label: 'ANN', sub: 'CAST' },
+            britishPub: { bg: '#7f1d1d', fg: '#fff1f2', label: 'PUB', sub: 'CHEER' },
+            anime: { bg: '#1d4ed8', fg: '#eff6ff', label: 'ANIME', sub: 'SPARK' },
+            dataAnalyst: { bg: '#1f2937', fg: '#e5e7eb', label: 'DATA', sub: 'METRIC' },
+            trashTalker: { bg: '#991b1b', fg: '#fee2e2', label: 'TRASH', sub: 'TALK' },
+            default: { bg: '#0f172a', fg: '#e2e8f0', label: 'DART', sub: 'VIBE' }
         };
 
+        const entry = avatars[personaKey] || avatars.default;
+        if (!entry.dataUri) {
+            entry.dataUri = this.buildPersonaAvatar(entry);
+        }
+        return entry.dataUri;
+    }
+
+    buildPersonaAvatar({ bg, fg, label, sub }) {
+        const svg = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
+                <defs>
+                    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0" stop-color="${bg}"/>
+                        <stop offset="1" stop-color="#020617"/>
+                    </linearGradient>
+                </defs>
+                <rect width="96" height="96" rx="18" fill="url(#g)"/>
+                <circle cx="70" cy="26" r="12" fill="${fg}" opacity="0.12"/>
+                <circle cx="22" cy="72" r="10" fill="${fg}" opacity="0.12"/>
+                <text x="50%" y="52%" text-anchor="middle" dominant-baseline="middle"
+                    font-family="Arial, sans-serif" font-size="18" fill="${fg}" font-weight="700"
+                    letter-spacing="1">${label}</text>
+                <text x="50%" y="70%" text-anchor="middle" dominant-baseline="middle"
+                    font-family="Arial, sans-serif" font-size="10" fill="${fg}" opacity="0.85"
+                    letter-spacing="1">${sub}</text>
+            </svg>
+        `.trim();
+
+        return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+    }
+
+    // Witty Comments - Uses random persona with getComment function
+    showWittyComment(score, remainingScore) {
+        if (typeof getComment === 'undefined') {
+            // Fallback if personas.js not loaded
+            this.showToast('Great shot!', 'default');
+            return;
+        }
+
+        // Get random persona
+        const personaKey = this.getRandomPersona();
+        
+        // Determine category
         let category;
         if (score === 0) {
             category = 'miss';
@@ -587,26 +698,49 @@ class DartGame {
             category = 'low';
         }
 
-        const categoryComments = comments[category];
-        const comment = categoryComments[Math.floor(Math.random() * categoryComments.length)];
-        this.showToast(comment);
+        // Get comment using getComment function from personas.js
+        const comment = getComment({
+            personaKey: personaKey,
+            category: category,
+            context: { scoreDelta: score },
+            settings: {}
+        });
+
+        // Show toast with persona
+        this.showToast(comment, personaKey);
     }
 
-    // Toast Notifications
-    showToast(message) {
+    // Toast Notifications with Persona Image and Speech Bubble
+    showToast(message, personaKey = 'default') {
         const container = document.getElementById('toast-container');
         const toast = document.createElement('div');
         toast.className = 'toast';
-        toast.textContent = message;
+        
+        const personaImage = this.getPersonaImage(personaKey);
+        const personaName = typeof PERSONAS !== 'undefined' && PERSONAS[personaKey] ? PERSONAS[personaKey].name : 'Comment';
+        const fallbackImage = this.getPersonaImage('default');
+        
+        toast.innerHTML = `
+            <div class="toast-content">
+                <div class="toast-avatar">
+                    <img src="${personaImage}" alt="${personaName}" class="toast-avatar-img" onerror="this.src='${fallbackImage}'">
+                </div>
+                <div class="toast-speech-bubble">
+                    <div class="toast-message">${message}</div>
+                </div>
+            </div>
+        `;
 
         container.appendChild(toast);
 
         setTimeout(() => {
             toast.classList.add('removing');
             setTimeout(() => {
-                container.removeChild(toast);
+                if (container.contains(toast)) {
+                    container.removeChild(toast);
+                }
             }, 300);
-        }, 3000);
+        }, 4000);
     }
 
     // Screen Management
