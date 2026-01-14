@@ -445,12 +445,21 @@ body {
     padding: var(--spacing-sm);
     margin-bottom: var(--spacing-sm);
     min-height: 60px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: var(--spacing-md);
 }
 
 .turn-history-label {
     font-size: 0.75rem;
     color: var(--text-secondary);
     margin-bottom: var(--spacing-xs);
+}
+
+.turn-summary {
+    min-width: 0;
+    flex: 1;
 }
 
 .turn-darts {
@@ -481,10 +490,11 @@ body {
 
 /* Darts Remaining */
 .darts-remaining {
-    text-align: center;
+    text-align: right;
     font-size: 0.875rem;
     color: var(--text-secondary);
-    margin-bottom: var(--spacing-sm);
+    margin-bottom: 0;
+    white-space: nowrap;
 }
 
 .darts-remaining span {
@@ -970,6 +980,7 @@ body {
     .turn-history {
         padding: 6px;
         margin-bottom: 6px;
+        gap: 8px;
     }
 
     .darts-remaining,
@@ -977,6 +988,10 @@ body {
     .number-grid,
     .special-buttons {
         margin-bottom: 6px;
+    }
+
+    .darts-remaining {
+        font-size: 0.75rem;
     }
 
     .mode-btn,
